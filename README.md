@@ -21,6 +21,7 @@
 6. [Common Confusions (fast clarifications)](#6-common-confusions-fast-clarifications)
 7. [Best Practices (production-minded)](#7-best-practices-production-minded)
 8. [Troubleshooting (frequent gotchas)](#8-troubleshooting-frequent-gotchas)
+9. [Contributing](#9-contributing)
 
 ---
 
@@ -659,3 +660,9 @@ this.emitter.emit('user.created', { id: '...' });
 
 * **Config not loading**
   Check `envFilePath` ordering and `NODE_ENV`; ensure `validationSchema` matches required vars.
+
+  ## 9) Contributing
+Spotted a gap or want to improve examples? Read the [Contributing Guide](CONTRIBUTING.md) and open a PR.
+
+**Quick start:** fork → branch → edit → `pnpm test` (or `npm run test`) → PR with a clear description.
+
