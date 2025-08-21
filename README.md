@@ -1,7 +1,3 @@
-Here’s a drop-in **`NEST_GUIDE.md`**—dense, practical, and ToC-friendly. It starts with setup (install → DB → validation → environments → docs) and then “How-to by use-case” so you can jump straight to what you want.
-
----
-
 # NEST\_GUIDE.md — NestJS 11.1.6 Setup & How-To Handbook
 
 ## Table of Contents
@@ -45,7 +41,7 @@ npm run start:dev
 npm i @nestjs/typeorm typeorm pg
 ```
 
-`src/app.module.ts`
+**`src/app.module.ts`**
 
 ```ts
 import { Module } from '@nestjs/common';
@@ -57,7 +53,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       type: 'postgres',
       url: process.env.DATABASE_URL, // e.g. postgres://user:pass@localhost:5432/db
       autoLoadEntities: true,
-      synchronize: false, // NEVER true in prod. Use migrations.
+      synchronize: false,            // NEVER true in prod. Use migrations.
       logging: process.env.NODE_ENV !== 'production',
     }),
   ],
@@ -71,7 +67,7 @@ export class AppModule {}
 npm i class-validator class-transformer
 ```
 
-`src/main.ts`
+**`src/main.ts`**
 
 ```ts
 import { ValidationPipe } from '@nestjs/common';
@@ -98,16 +94,16 @@ bootstrap();
 npm i @nestjs/config joi
 ```
 
-Project root:
+**Project root:**
 
 ```
-.env            # default / dev
+.env
 .env.development
 .env.staging
 .env.production
 ```
 
-`src/app.module.ts`
+**`src/app.module.ts`**
 
 ```ts
 import { Module } from '@nestjs/common';
@@ -133,11 +129,10 @@ import * as Joi from 'joi';
 export class AppModule {}
 ```
 
-Usage in services:
+**Usage in services:**
 
 ```ts
 import { ConfigService } from '@nestjs/config';
-
 constructor(private readonly config: ConfigService) {}
 const dbUrl = this.config.get<string>('DATABASE_URL');
 ```
@@ -148,11 +143,12 @@ const dbUrl = this.config.get<string>('DATABASE_URL');
 npm i @nestjs/swagger swagger-ui-express
 ```
 
-`src/main.ts`
+**`src/main.ts`**
 
 ```ts
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
+// ... after creating the app
 const config = new DocumentBuilder()
   .setTitle('My API')
   .setDescription('REST API for My App')
@@ -164,7 +160,7 @@ const document = SwaggerModule.createDocument(app, config);
 SwaggerModule.setup('docs', app, document); // http://localhost:3000/docs
 ```
 
-Decorate DTOs & endpoints for better docs:
+**Decorate DTOs & endpoints:**
 
 ```ts
 import { ApiProperty, ApiTags, ApiOkResponse } from '@nestjs/swagger';
@@ -188,14 +184,14 @@ export class CreateUserDto {
 npm i -D @compodoc/compodoc
 ```
 
-Generate & serve:
+**Serve docs:**
 
 ```bash
 npx compodoc -p tsconfig.json -s -r 8081
 # open http://localhost:8081
 ```
 
-Generate static docs:
+**Export static site:**
 
 ```bash
 npx compodoc -p tsconfig.json -d ./compodoc
@@ -203,7 +199,7 @@ npx compodoc -p tsconfig.json -d ./compodoc
 
 ### 1.7 Recommended scripts
 
-`package.json`
+**`package.json`**
 
 ```json
 {
@@ -232,10 +228,14 @@ nest g service users --flat --no-spec
 nest g controller users --no-spec
 ```
 
-Wire it:
+**Wire it**
 
 ```ts
 // users.module.ts
+import { Module } from '@nestjs/common';
+import { UsersController } from './users.controller';
+import { UsersService } from './users.service';
+
 @Module({
   controllers: [UsersController],
   providers: [UsersService],
@@ -244,23 +244,30 @@ Wire it:
 export class UsersModule {}
 ```
 
-Use from another module:
+**Consume from another module**
 
 ```ts
-@Module({ imports: [UsersModule] })
-export class OrdersModule {
-  constructor(private readonly users: UsersService) {}
-}
+// orders.module.ts
+import { Module } from '@nestjs/common';
+import { UsersModule } from '../users/users.module';
+import { OrdersService } from './orders.service';
+
+@Module({ imports: [UsersModule], providers: [OrdersService] })
+export class OrdersModule {}
 ```
 
 ### 2.2 When a circular dependency appears
 
-Symptoms: `Nest can't resolve dependencies of X (Y, ?). Please make sure that the argument Z at index 1 is available...`
+**Symptoms:** `Nest can't resolve dependencies of X (Y, ?)... argument Z at index 1 is available...`
 
-Fix with `forwardRef` on BOTH sides that reference each other:
+**Fix with `forwardRef` on BOTH sides that reference each other:**
 
 ```ts
 // users.module.ts
+import { Module, forwardRef } from '@nestjs/common';
+import { OrdersModule } from '../orders/orders.module';
+import { UsersService } from './users.service';
+
 @Module({
   imports: [forwardRef(() => OrdersModule)],
   providers: [UsersService],
@@ -269,6 +276,10 @@ Fix with `forwardRef` on BOTH sides that reference each other:
 export class UsersModule {}
 
 // orders.module.ts
+import { Module, forwardRef } from '@nestjs/common';
+import { UsersModule } from '../users/users.module';
+import { OrdersService } from './orders.service';
+
 @Module({
   imports: [forwardRef(() => UsersModule)],
   providers: [OrdersService],
@@ -277,13 +288,14 @@ export class UsersModule {}
 export class OrdersModule {}
 ```
 
-And inject the opposite using `forwardRef`:
+**Inject using `forwardRef`:**
 
 ```ts
+import { Inject, forwardRef } from '@nestjs/common';
 constructor(@Inject(forwardRef(() => OrdersService)) private orders: OrdersService) {}
 ```
 
-**Prefer refactoring** to break cycles (extract a shared “core” provider) if possible.
+> Prefer refactoring to break cycles (extract a shared “core” provider) when possible.
 
 ### 2.3 Add a new entity (create → import → use)
 
@@ -299,7 +311,7 @@ export class UserEntity {
   id: string;
 
   @Index({ unique: true })
-  @Column({ nullable: true }) // unique + nullable is fine in Postgres; multiple NULLs allowed
+  @Column({ nullable: true }) // Postgres allows multiple NULLs with unique index
   email?: string;
 
   @Column()
@@ -311,7 +323,10 @@ export class UserEntity {
 
 ```ts
 // src/users/users.module.ts
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { UsersService } from './users.service';
+import { UsersController } from './users.controller';
 import { UserEntity } from './user.entity';
 
 @Module({
@@ -350,7 +365,7 @@ export class UsersService {
 
 ### 2.4 Create and run database migrations (TypeORM 0.3+)
 
-**1) Create a dedicated data source for CLI**
+**1) Dedicated data source for CLI**
 
 ```ts
 // src/database/data-source.ts
@@ -365,16 +380,17 @@ export const AppDataSource = new DataSource({
   synchronize: false,
   logging: false,
 });
+
 export default AppDataSource;
 ```
 
-**2) Scripts (TS exec)**
+**2) Scripts (TypeScript execution)**
 
 ```bash
 npm i -D ts-node
 ```
 
-`package.json`
+**`package.json`**
 
 ```json
 {
@@ -393,7 +409,7 @@ npm i -D ts-node
 **3) Generate after entity change**
 
 ```bash
-# Update/新增 entities first, then:
+# Update or add entities first, then:
 npm run db:gen
 npm run db:run
 ```
@@ -429,6 +445,10 @@ export class CreateUsers1730000000000 implements MigrationInterface {
 **Controller — thin**
 
 ```ts
+import { Controller, Get, Post, Body } from '@nestjs/common';
+import { UsersService } from './users.service';
+import { CreateUserDto } from './dtos/create-user.dto';
+
 @Controller('users')
 export class UsersController {
   constructor(private readonly users: UsersService) {}
@@ -444,10 +464,15 @@ export class UsersController {
 **Service — business logic**
 
 ```ts
+import { Injectable } from '@nestjs/common';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { UserEntity } from './user.entity';
+
 @Injectable()
 export class UsersService {
   constructor(@InjectRepository(UserEntity) private repo: Repository<UserEntity>) {}
-  // do validation/coordination, not raw HTTP concerns
+  // business logic here
 }
 ```
 
@@ -469,6 +494,8 @@ export class CreateUserDto {
 **Guard (auth/perm)**
 
 ```ts
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+
 @Injectable()
 export class AuthGuard implements CanActivate {
   canActivate(ctx: ExecutionContext) {
@@ -481,6 +508,8 @@ export class AuthGuard implements CanActivate {
 **Pipe (validate/transform)**
 
 ```ts
+import { Injectable, PipeTransform, BadRequestException } from '@nestjs/common';
+
 @Injectable()
 export class ParseIdPipe implements PipeTransform {
   transform(v: string) {
@@ -493,9 +522,13 @@ export class ParseIdPipe implements PipeTransform {
 **Interceptor (wrap/transform/log)**
 
 ```ts
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import { tap } from 'rxjs/operators';
+import { Observable } from 'rxjs';
+
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
-  intercept(ctx: ExecutionContext, next: CallHandler) {
+  intercept(ctx: ExecutionContext, next: CallHandler): Observable<any> {
     const started = Date.now();
     return next.handle().pipe(tap(() => console.log('took', Date.now() - started, 'ms')));
   }
@@ -505,6 +538,8 @@ export class LoggingInterceptor implements NestInterceptor {
 **Exception Filter (centralize errors)**
 
 ```ts
+import { Catch, ExceptionFilter, ArgumentsHost, HttpException } from '@nestjs/common';
+
 @Catch(HttpException)
 export class HttpErrorFilter implements ExceptionFilter {
   catch(e: HttpException, host: ArgumentsHost) {
@@ -521,7 +556,8 @@ export class HttpErrorFilter implements ExceptionFilter {
 **Cache**
 
 ```ts
-import { CacheModule } from '@nestjs/cache-manager';
+import { Module } from '@nestjs/common';
+import { CacheModule, CacheInterceptor } from '@nestjs/cache-manager';
 
 @Module({
   imports: [CacheModule.register({ ttl: 60 })],
@@ -530,6 +566,7 @@ export class AppModule {}
 ```
 
 ```ts
+import { UseInterceptors } from '@nestjs/common';
 @UseInterceptors(CacheInterceptor)
 @Get() getHeavy() { /* ... */ }
 ```
@@ -541,10 +578,14 @@ npm i @nestjs/schedule
 ```
 
 ```ts
-import { Cron, CronExpression, SchedulerRegistry } from '@nestjs/schedule';
+import { Injectable } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
-@Cron(CronExpression.EVERY_30_SECONDS)
-handleCron() { /* ... */ }
+@Injectable()
+export class TasksService {
+  @Cron(CronExpression.EVERY_30_SECONDS)
+  handleCron() { /* ... */ }
+}
 ```
 
 **Events**
@@ -554,6 +595,7 @@ npm i @nestjs/event-emitter
 ```
 
 ```ts
+import { EventEmitter2 } from '@nestjs/event-emitter';
 constructor(private emitter: EventEmitter2) {}
 this.emitter.emit('user.created', { id: '...' });
 ```
@@ -572,17 +614,17 @@ this.emitter.emit('user.created', { id: '...' });
 
 * **Providers vs Exports**
   `providers` are local to the module.
-  To reuse elsewhere, add to `exports` and import the module there.
+  To reuse elsewhere, add to `exports` and import that module where needed.
 
 * **Middleware vs Interceptor**
-  Middleware runs before the route handler at the framework level (raw req/res).
-  Interceptor wraps handler execution (can map/transform responses, measure timing, cache).
+  Middleware runs before route handler at framework level (raw req/res).
+  Interceptor wraps handler execution (transform/measure/cache).
 
 * **Circular deps**
-  Use `forwardRef` as a stopgap. Prefer extracting shared logic into a separate module to break the cycle cleanly.
+  Use `forwardRef` as a stopgap. Prefer extracting shared logic into a separate module to break the cycle.
 
 * **`unique` + `nullable` (emails)**
-  Postgres allows multiple `NULL` with a unique index. If you need “unique when present,” it’s fine to use `nullable: true` + `unique`.
+  Postgres allows multiple `NULL` rows under a unique index. “Unique when present” is fine with `nullable: true` + `unique`.
 
 ---
 
@@ -593,34 +635,27 @@ this.emitter.emit('user.created', { id: '...' });
 * Use DTOs + global `ValidationPipe` with `whitelist` and `transform`.
 * Keep controllers slim; push logic into services.
 * Organize by **domain** (users/, orders/, payments/) not by type.
-* Put shared utilities into a `shared`/`common` module (no circular deps).
-* Add Swagger early; CI can export OpenAPI JSON for clients.
-* Compodoc for team onboarding/architecture visibility.
-* Log structured JSON in prod (Pino/Winston).
-* Add request-ID correlation (e.g., header middleware) if you care about tracing.
+* Put shared utilities in a `common`/`shared` module (avoid circular deps).
+* Add Swagger early; export OpenAPI in CI for clients.
+* Use Compodoc for onboarding/architecture visibility.
+* Log structured JSON (Pino/Winston) in prod; add request-ID correlation.
+* Cover unit + e2e tests; centralize exception filtering.
 
 ---
 
 ## 8) Troubleshooting (frequent gotchas)
 
 * **“Nest can’t resolve dependencies…”**
-  You forgot to `exports: [X]` or to import the module that provides X.
-  Or you have a circular dep—use `forwardRef` or refactor.
+  Missing `exports: [X]` or forgot to import the module that provides X, or a circular dep—use `forwardRef` or refactor.
 
-* **Migrations don’t see my entities**
-  Make sure the CLI **data source** includes the correct `entities` paths and that the `-d` option points to it.
+* **Migrations don’t see entities**
+  Ensure the CLI **data source** includes correct `entities` and `migrations` paths; pass `-d src/database/data-source.ts`.
 
 * **Validation not running**
-  Ensure `app.useGlobalPipes(new ValidationPipe(...))` is in `main.ts` and DTOs are used as method params.
+  `app.useGlobalPipes(new ValidationPipe(...))` in `main.ts`, and DTOs must be used in controller method params.
 
 * **Swagger not showing models**
-  Decorate DTO props with `@ApiProperty()` and ensure the controller has `@ApiTags()`.
+  Decorate DTO props with `@ApiProperty()` and tag controllers with `@ApiTags()`.
 
 * **Config not loading**
-  Confirm `envFilePath` ordering, `NODE_ENV`, and validation schema in `ConfigModule.forRoot`.
-
----
-
-### That’s it.
-
-You now have: install → DB → validation → multi-env → Swagger/Compodoc → and targeted “How-to” sections for modules, circular deps, entities, and migrations. If you want, I can add **JWT auth (Passport)**, **Redis cache**, or **Docker compose** blocks next.
+  Check `envFilePath` ordering and `NODE_ENV`; ensure `validationSchema` matches required vars.
